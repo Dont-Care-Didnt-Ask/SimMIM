@@ -15,6 +15,7 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
+import wandb
 
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from timm.utils import accuracy, AverageMeter
@@ -127,6 +128,7 @@ def main(config):
         throughput(data_loader_val, model, logger)
         return
 
+    wandb.init(project="SimMIM", entity="exxxplainer", name="official_finetune")
     logger.info("Start training")
     start_time = time.time()
     for epoch in range(config.TRAIN.START_EPOCH, config.TRAIN.EPOCHS):
@@ -140,6 +142,12 @@ def main(config):
         logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.1f}%")
         max_accuracy = max(max_accuracy, acc1)
         logger.info(f'Max accuracy: {max_accuracy:.2f}%')
+
+        wandb.log({
+            "top-1 val accuracy": acc1,
+            "top-5 val accuracy": acc5,
+            "val loss": loss,
+        })
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
