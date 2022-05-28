@@ -128,7 +128,7 @@ def main(config):
         throughput(data_loader_val, model, logger)
         return
 
-    wandb.init(project="SimMIM", entity="exxxplainer", name="official_finetune")
+    wandb.init(project="SimMIM", entity="exxxplainer")
     logger.info("Start training")
     start_time = time.time()
     for epoch in range(config.TRAIN.START_EPOCH, config.TRAIN.EPOCHS):
