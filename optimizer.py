@@ -91,7 +91,7 @@ def build_finetune_optimizer(config, model, logger):
 
     parameters = get_finetune_param_groups(
         model, logger, config.TRAIN.BASE_LR, config.TRAIN.WEIGHT_DECAY,
-        get_layer_func, scales, skip, skip_keywords)
+        get_layer_func, scales, skip, skip_keywords, config.TRAIN.LAST_N_LAYERS)
     
     opt_lower = config.TRAIN.OPTIMIZER.NAME.lower()
     optimizer = None
@@ -136,7 +136,7 @@ def get_swin_layer(name, num_layers, depths):
         return num_layers - 1
 
 
-def get_finetune_param_groups(model, logger, lr, weight_decay, get_layer_func, scales, skip_list=(), skip_keywords=()):
+def get_finetune_param_groups(model, logger, lr, weight_decay, get_layer_func, scales, skip_list=(), skip_keywords=(), last_n_layers=-1):
     parameter_group_names = {}
     parameter_group_vars = {}
 
@@ -180,7 +180,19 @@ def get_finetune_param_groups(model, logger, lr, weight_decay, get_layer_func, s
         parameter_group_vars[group_name]["params"].append(param)
         parameter_group_names[group_name]["params"].append(name)
     logger.info("Param groups = %s" % json.dumps(parameter_group_names, indent=2))
-    return list(parameter_group_vars.values())
+
+    parameter_group_vars_list = list(parameter_group_vars.values())
+
+    if last_n_layers < 0:
+        return parameter_group_vars_list
+    else:
+        # each layer is split into 2 groups -- with/without decay,
+        # so we have to multiply by 2
+        for group in parameter_group_vars_list[:-2 * last_n_layers]:
+            for param in group['params']:
+                param.requires_grad = False
+
+        return parameter_group_vars_list[-2 * last_n_layers:]
 
 
 def check_keywords_in_name(name, keywords=()):

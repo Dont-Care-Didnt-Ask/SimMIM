@@ -132,7 +132,9 @@ _C.TRAIN.OPTIMIZER.MOMENTUM = 0.9
 
 # [SimMIM] Layer decay for fine-tuning
 _C.TRAIN.LAYER_DECAY = 1.0
-
+# Number of layers to finetune, the rest are frozen.
+# -1 -- train all layers, 1 -- train linear head only, 2 -- train one transformer block, etc.
+_C.TRAIN.LAST_N_LAYERS = -1
 # -----------------------------------------------------------------------------
 # Augmentation settings
 # -----------------------------------------------------------------------------
