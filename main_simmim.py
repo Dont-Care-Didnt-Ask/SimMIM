@@ -24,6 +24,7 @@ from lr_scheduler import build_scheduler
 from optimizer import build_optimizer
 from logger import create_logger
 from utils import load_checkpoint, save_checkpoint, get_grad_norm, auto_resume_helper
+from simple_remix import simple_remix_fast
 
 try:
     # noinspection PyUnresolvedReferences
@@ -131,7 +132,9 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
         img = img.cuda(non_blocking=True)
         mask = mask.cuda(non_blocking=True)
 
-        loss = model(img, mask)
+        mixed = simple_remix_fast(img, mask)
+
+        loss = model(mixed, mask, pass_mask_to_encoder=False)
 
         if config.TRAIN.ACCUMULATION_STEPS > 1:
             loss = loss / config.TRAIN.ACCUMULATION_STEPS

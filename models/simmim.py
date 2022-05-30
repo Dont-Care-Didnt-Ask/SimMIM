@@ -111,8 +111,8 @@ class SimMIM(nn.Module):
         self.in_chans = self.encoder.in_chans
         self.patch_size = self.encoder.patch_size
 
-    def forward(self, x, mask):
-        z = self.encoder(x, mask)
+    def forward(self, x, mask, pass_mask_to_encoder):
+        z = self.encoder(x, mask if pass_mask_to_encoder else torch.zeros_like(mask))
         x_rec = self.decoder(z)
 
         mask = mask.repeat_interleave(self.patch_size, 1).repeat_interleave(self.patch_size, 2).unsqueeze(1).contiguous()
