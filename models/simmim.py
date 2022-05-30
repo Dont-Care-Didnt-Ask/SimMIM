@@ -111,13 +111,17 @@ class SimMIM(nn.Module):
         self.in_chans = self.encoder.in_chans
         self.patch_size = self.encoder.patch_size
 
-    def forward(self, x, mask, pass_mask_to_encoder):
+    def forward(self, x, mask, pass_mask_to_encoder: bool = True, return_reconstruction: bool = False):
         z = self.encoder(x, mask if pass_mask_to_encoder else torch.zeros_like(mask))
         x_rec = self.decoder(z)
 
         mask = mask.repeat_interleave(self.patch_size, 1).repeat_interleave(self.patch_size, 2).unsqueeze(1).contiguous()
         loss_recon = F.l1_loss(x, x_rec, reduction='none')
         loss = (loss_recon * mask).sum() / (mask.sum() + 1e-5) / self.in_chans
+
+        if return_reconstruction:
+            return loss, x_rec
+
         return loss
 
     @torch.jit.ignore

@@ -16,6 +16,8 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 from timm.utils import AverageMeter
+from torchvision.utils import make_grid
+import wandb
 
 from config import get_config
 from models import build_model
@@ -103,14 +105,25 @@ def main(config):
     if config.MODEL.RESUME:
         load_checkpoint(config, model_without_ddp, optimizer, lr_scheduler, logger)
 
+    if config.LOCAL_RANK == 0:
+        wandb.init(project="SimMIM", entity="exxxplainer")
+
     logger.info("Start training")
     start_time = time.time()
     for epoch in range(config.TRAIN.START_EPOCH, config.TRAIN.EPOCHS):
         data_loader_train.sampler.set_epoch(epoch)
 
         train_one_epoch(config, model, data_loader_train, optimizer, epoch, lr_scheduler)
+
         if dist.get_rank() == 0 and (epoch % config.SAVE_FREQ == 0 or epoch == (config.TRAIN.EPOCHS - 1)):
             save_checkpoint(config, epoch, model_without_ddp, 0., optimizer, lr_scheduler, logger)
+            try:
+                import nirvana_dl.snapshot as snap
+                snap.dump_snapshot()
+                print('Checkpoint saved to snapshots.')
+            except Exception:
+                print('Checkpoint NOT save to snapshots!')
+                pass
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -128,13 +141,20 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
 
     start = time.time()
     end = time.time()
+
+    epoch_loss = 0.
+    epoch_images = 0
+
     for idx, (img, mask, _) in enumerate(data_loader):
         img = img.cuda(non_blocking=True)
         mask = mask.cuda(non_blocking=True)
 
-        mixed = simple_remix_fast(img, mask)
+        scale = config.DATA.MASK_PATCH_SIZE // model.module.patch_size
+        mixed = simple_remix_fast(img, mask, scale)
 
-        loss = model(mixed, mask, pass_mask_to_encoder=False)
+        loss, img_rec = model(mixed, mask, pass_mask_to_encoder=False, return_reconstruction=True)
+        epoch_loss += loss.item()
+        epoch_images += img.shape[0]
 
         if config.TRAIN.ACCUMULATION_STEPS > 1:
             loss = loss / config.TRAIN.ACCUMULATION_STEPS
@@ -191,9 +211,24 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
                 f'loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})\t'
                 f'grad_norm {norm_meter.val:.4f} ({norm_meter.avg:.4f})\t'
                 f'mem {memory_used:.0f}MB')
+
+
+        if config.IMAGE_VIS_FREQ > 0 and idx % config.IMAGE_VIS_FREQ == 0:
+            tensors = torch.cat([
+                img[:config.N_IMAGES_VIS],
+                mixed[:config.N_IMAGES_VIS],
+                img_rec[:config.N_IMAGES_VIS]], dim=0)
+
+            vis_array = make_grid(tensors, nrow=config.N_IMAGES_VIS, normalize=True).permute(1,2,0)
+            wandb.log({
+                "examples": wandb.Image(vis_array.cpu().numpy(), caption="Top: input, Middle: mixed, Bottom: reconstruction")
+            })
+
+
     epoch_time = time.time() - start
     logger.info(f"EPOCH {epoch} training takes {datetime.timedelta(seconds=int(epoch_time))}")
 
+    wandb.log({"train_loss": epoch_loss / epoch_images, "epoch": epoch})
 
 if __name__ == '__main__':
     _, config = parse_option()
