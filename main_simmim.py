@@ -213,11 +213,12 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
                 f'mem {memory_used:.0f}MB')
 
 
-        if config.IMAGE_VIS_FREQ > 0 and idx % config.IMAGE_VIS_FREQ == 0:
+        if config.IMAGE_VIS_FREQ > 0 and idx % config.IMAGE_VIS_FREQ == 0 and config.LOCAL_RANK == 0:
             tensors = torch.cat([
                 img[:config.N_IMAGES_VIS],
                 mixed[:config.N_IMAGES_VIS],
-                img_rec[:config.N_IMAGES_VIS]], dim=0)
+                img_rec[:config.N_IMAGES_VIS]], 
+            dim=0)
 
             vis_array = make_grid(tensors, nrow=config.N_IMAGES_VIS, normalize=True).permute(1,2,0)
             wandb.log({
@@ -227,8 +228,9 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
 
     epoch_time = time.time() - start
     logger.info(f"EPOCH {epoch} training takes {datetime.timedelta(seconds=int(epoch_time))}")
-
-    wandb.log({"train_loss": epoch_loss / epoch_images, "epoch": epoch})
+    
+    if config.LOCAL_RANK == 0:
+        wandb.log({"train_loss": epoch_loss / epoch_images, "epoch": epoch})
 
 if __name__ == '__main__':
     _, config = parse_option()
