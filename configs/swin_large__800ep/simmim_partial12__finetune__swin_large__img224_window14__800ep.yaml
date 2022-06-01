@@ -16,8 +16,8 @@ TRAIN:
   WARMUP_LR: 2.5e-7
   MIN_LR: 2.5e-7
   WEIGHT_DECAY: 0.05
-  LAYER_DECAY: 1.0
+  LAYER_DECAY: 0.7
   LAST_N_LAYERS: 13
 PRINT_FREQ: 100
 SAVE_FREQ: 5
-TAG: simmim_partial12_finetune__swin_large__img224_window14__800ep
+TAG: simmim_partial12_decay07_finetune__swin_large__img224_window14__800ep
