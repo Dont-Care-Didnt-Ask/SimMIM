@@ -111,16 +111,55 @@ class SimMIM(nn.Module):
         self.in_chans = self.encoder.in_chans
         self.patch_size = self.encoder.patch_size
 
-    def forward(self, x, mask, pass_mask_to_encoder: bool = True, return_reconstruction: bool = False):
-        z = self.encoder(x, mask if pass_mask_to_encoder else torch.zeros_like(mask))
+    def forward(self, x, mask):
+        z = self.encoder(x, mask)
         x_rec = self.decoder(z)
 
         mask = mask.repeat_interleave(self.patch_size, 1).repeat_interleave(self.patch_size, 2).unsqueeze(1).contiguous()
         loss_recon = F.l1_loss(x, x_rec, reduction='none')
         loss = (loss_recon * mask).sum() / (mask.sum() + 1e-5) / self.in_chans
 
+        return loss
+
+    @torch.jit.ignore
+    def no_weight_decay(self):
+        if hasattr(self.encoder, 'no_weight_decay'):
+            return {'encoder.' + i for i in self.encoder.no_weight_decay()}
+        return {}
+
+    @torch.jit.ignore
+    def no_weight_decay_keywords(self):
+        if hasattr(self.encoder, 'no_weight_decay_keywords'):
+            return {'encoder.' + i for i in self.encoder.no_weight_decay_keywords()}
+        return {}
+
+
+class ReMix(nn.Module):
+    def __init__(self, encoder, encoder_stride):
+        super().__init__()
+        self.encoder = encoder
+        self.encoder_stride = encoder_stride
+
+        self.decoder = nn.Sequential(
+            nn.Conv2d(
+                in_channels=self.encoder.num_features,
+                out_channels=self.encoder_stride ** 2 * 3, kernel_size=1),
+            nn.PixelShuffle(self.encoder_stride),
+        )
+
+        self.in_chans = self.encoder.in_chans
+        self.patch_size = self.encoder.patch_size
+
+    def forward(self, mixed, mask, target, return_reconstruction: bool = False):
+        z = self.encoder(mixed, torch.zeros_like(mask))
+        reconstruction = self.decoder(z)
+
+        mask = mask.repeat_interleave(self.patch_size, 1).repeat_interleave(self.patch_size, 2).unsqueeze(1).contiguous()
+        loss_recon = F.l1_loss(target, reconstruction, reduction='none')
+        loss = (loss_recon * mask).sum() / (mask.sum() + 1e-5) / self.in_chans
+
         if return_reconstruction:
-            return loss, x_rec
+            return loss, reconstruction
 
         return loss
 
@@ -181,6 +220,9 @@ def build_simmim(config):
     else:
         raise NotImplementedError(f"Unknown pre-train model: {model_type}")
 
-    model = SimMIM(encoder=encoder, encoder_stride=encoder_stride)
+    if config.MODEL.REMIX_ON:
+        model = ReMix(encoder=encoder, encoder_stride=encoder_stride)
+    else:
+        model = SimMIM(encoder=encoder, encoder_stride=encoder_stride)
 
     return model

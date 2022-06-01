@@ -152,7 +152,7 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
         scale = config.DATA.MASK_PATCH_SIZE // model.module.patch_size
         mixed = simple_remix_fast(img, mask, scale)
 
-        loss, img_rec = model(mixed, mask, pass_mask_to_encoder=False, return_reconstruction=True)
+        loss, img_rec = model(mixed, mask, img, return_reconstruction=True)
         epoch_loss += loss.item()
         epoch_images += img.shape[0]
 

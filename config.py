@@ -43,6 +43,8 @@ _C.DATA.MASK_RATIO = 0.6
 # Model settings
 # -----------------------------------------------------------------------------
 _C.MODEL = CN()
+# Use ReMix objective instead of original SimMIM objective
+_C.MODEL.REMIX_ON = False
 # Model type
 _C.MODEL.TYPE = 'swin'
 # Model name
