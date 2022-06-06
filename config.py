@@ -186,7 +186,7 @@ _C.SAVE_FREQ = 1
 # Frequency to logging info
 _C.PRINT_FREQ = 10
 # Frequency for logging reconstructed images during pretrain
-_C.IMAGE_VIS_FREQ = 100
+_C.IMAGE_VIS_FREQ = 1000
 # Amount of images to log
 _C.N_IMAGES_VIS = 8
 # Fixed random seed

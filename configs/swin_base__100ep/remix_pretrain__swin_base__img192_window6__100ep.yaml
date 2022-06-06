@@ -11,7 +11,7 @@ MODEL:
 DATA:
   IMG_SIZE: 192
   MASK_PATCH_SIZE: 32
-  MASK_RATIO: 0.6
+  MASK_RATIO: 0.4
 TRAIN:
   EPOCHS: 100
   WARMUP_EPOCHS: 10
@@ -20,5 +20,5 @@ TRAIN:
   MIN_LR: 1e-5
   WEIGHT_DECAY: 0.05
 PRINT_FREQ: 100
-SAVE_FREQ: 5
-TAG: simmim_pretrain__swin_base__img192_window6__100ep
+SAVE_FREQ: 10
+TAG: remix_pretrain__swin_base__img192_window6__100ep
