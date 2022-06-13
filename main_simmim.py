@@ -26,7 +26,7 @@ from lr_scheduler import build_scheduler
 from optimizer import build_optimizer
 from logger import create_logger
 from utils import load_checkpoint, save_checkpoint, get_grad_norm, auto_resume_helper
-from simple_remix import simple_remix_fast
+from simple_remix import simple_remix_fast, shifted_remix
 
 try:
     # noinspection PyUnresolvedReferences
@@ -150,7 +150,7 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
         mask = mask.cuda(non_blocking=True)
 
         scale = config.DATA.MASK_PATCH_SIZE // model.module.patch_size
-        mixed = simple_remix_fast(img, mask, scale)
+        mixed = shifted_remix(img, mask, scale)
 
         loss, img_rec = model(mixed, mask, img, return_reconstruction=True)
         epoch_loss += loss.item()
